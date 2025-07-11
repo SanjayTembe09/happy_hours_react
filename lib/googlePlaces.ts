@@ -76,7 +76,7 @@ export class GooglePlacesService {
       id: place.place_id,
       name: place.name,
       description: this.generateDescription(place.name, category),
-      image: place.photos?.[0]?.photo_reference || this.getDefaultImageForCategory(category),
+      image: place.photos?.[0]?.photo_reference || this.getOptimizedDefaultImageForCategory(category),
       location: {
         latitude: place.geometry.location.lat,
         longitude: place.geometry.location.lng,
@@ -145,14 +145,14 @@ export class GooglePlacesService {
     return categoryDescriptions[Math.floor(Math.random() * categoryDescriptions.length)];
   }
 
-  private static getDefaultImageForCategory(category: string): string {
+  private static getOptimizedDefaultImageForCategory(category: string): string {
     const defaultImages = {
-      'Spa & Wellness': 'https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg',
-      'Restaurant': 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg',
-      'Bar & Restaurant': 'https://images.pexels.com/photos/1581384/pexels-photo-1581384.jpeg',
-      'Cafe': 'https://images.pexels.com/photos/302899/pexels-photo-302899.jpeg',
-      'Street Food': 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg',
-      'Massage Parlour': 'https://images.pexels.com/photos/3865676/pexels-photo-3865676.jpeg'
+      'Spa & Wellness': 'https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp',
+      'Restaurant': 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp',
+      'Bar & Restaurant': 'https://images.pexels.com/photos/1581384/pexels-photo-1581384.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp',
+      'Cafe': 'https://images.pexels.com/photos/302899/pexels-photo-302899.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp',
+      'Street Food': 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp',
+      'Massage Parlour': 'https://images.pexels.com/photos/3865676/pexels-photo-3865676.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp'
     };
 
     return defaultImages[category as keyof typeof defaultImages] || defaultImages['Restaurant'];

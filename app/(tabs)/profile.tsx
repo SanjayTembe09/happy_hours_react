@@ -6,63 +6,101 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from 'react-native';
-import { User, Settings, Bell, MapPin, CreditCard, CircleHelp as HelpCircle, Shield, LogOut, ChevronRight } from 'lucide-react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '@/constants/theme';
-import { useAuth } from '@/hooks/useAuth';
-import { router } from 'expo-router';
+import { User, Settings, Bell, MapPin, CreditCard, CircleHelp as HelpCircle, Shield, ChevronRight, Heart, Globe } from 'lucide-react-native';
+
+const colors = {
+  primary: '#f97316',
+  secondary: '#64748b',
+  white: '#ffffff',
+};
+
+const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+};
+
+const borderRadius = {
+  md: 8,
+  lg: 12,
+  xl: 16,
+  full: 9999,
+};
+
+const shadows = {
+  sm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  md: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+};
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
-
-  const handleLogout = async () => {
-    await logout();
-  };
-
-  const handleAdminAccess = () => {
-    router.push('/admin');
-  };
-
-  const handleAuthAccess = () => {
-    router.push('/auth');
+  const handleMenuItemPress = (title: string) => {
+    Alert.alert(title, `${title} functionality will be implemented soon.`);
   };
 
   const menuItems = [
     {
+      icon: Heart,
+      title: 'Saved Places',
+      subtitle: '3 places bookmarked',
+      onPress: () => handleMenuItemPress('Saved Places'),
+    },
+    {
+      icon: Globe,
+      title: 'Location Preferences',
+      subtitle: 'Currently exploring Bangkok',
+      onPress: () => handleMenuItemPress('Location Preferences'),
+    },
+    {
       icon: Settings,
       title: 'Account Settings',
       subtitle: 'Manage your account preferences',
-      onPress: () => {},
+      onPress: () => handleMenuItemPress('Account Settings'),
     },
     {
       icon: Bell,
       title: 'Notifications',
       subtitle: 'Configure your notification preferences',
-      onPress: () => {},
+      onPress: () => handleMenuItemPress('Notifications'),
     },
     {
       icon: MapPin,
       title: 'Location Services',
       subtitle: 'Manage location permissions',
-      onPress: () => {},
+      onPress: () => handleMenuItemPress('Location Services'),
     },
     {
       icon: CreditCard,
       title: 'Payment Methods',
       subtitle: 'Add or remove payment options',
-      onPress: () => {},
+      onPress: () => handleMenuItemPress('Payment Methods'),
     },
     {
       icon: HelpCircle,
       title: 'Help & Support',
       subtitle: 'Get help or contact support',
-      onPress: () => {},
+      onPress: () => handleMenuItemPress('Help & Support'),
     },
     {
       icon: Shield,
       title: 'Privacy & Security',
       subtitle: 'Manage your privacy settings',
-      onPress: () => {},
+      onPress: () => handleMenuItemPress('Privacy & Security'),
     },
   ];
 
@@ -75,77 +113,56 @@ export default function ProfileScreen() {
 
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
-            <User size={48} color={colors.primary[500]} />
+            <User size={48} color={colors.primary} />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>
-              {user ? user.name : 'Guest User'}
-            </Text>
-            <Text style={styles.profileEmail}>
-              {user ? user.email : 'Not signed in'}
-            </Text>
-            {user && (
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>{user.role.toUpperCase()}</Text>
-              </View>
-            )}
+            <Text style={styles.profileName}>Guest User</Text>
+            <Text style={styles.profileEmail}>Not signed in</Text>
           </View>
+        </View>
+
+        <View style={styles.currentLocationCard}>
+          <View style={styles.currentLocationHeader}>
+            <Globe size={20} color={colors.primary} />
+            <Text style={styles.currentLocationTitle}>Current Location</Text>
+          </View>
+          <Text style={styles.currentLocationName}>Bangkok, Thailand</Text>
+          <Text style={styles.currentLocationTime}>
+            Local time: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+          <TouchableOpacity style={styles.changeLocationButton}>
+            <Text style={styles.changeLocationText}>Change Location</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.menuSection}>
           {menuItems.map((item, index) => (
             <TouchableOpacity
-              key={index}
-              style={styles.menuItem}
+              key={item.title}
+              style={[
+                styles.menuItem,
+                index === menuItems.length - 1 && styles.menuItemLast
+              ]}
               onPress={item.onPress}
             >
               <View style={styles.menuItemLeft}>
                 <View style={styles.menuIconContainer}>
-                  <item.icon size={20} color={colors.secondary[600]} />
+                  <item.icon size={20} color={colors.secondary} />
                 </View>
                 <View style={styles.menuItemContent}>
                   <Text style={styles.menuItemTitle}>{item.title}</Text>
                   <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
                 </View>
               </View>
-              <ChevronRight size={20} color={colors.secondary[400]} />
+              <ChevronRight size={20} color="#94a3b8" />
             </TouchableOpacity>
           ))}
-        </View>
-
-        <View style={styles.actionSection}>
-          {!user ? (
-            <TouchableOpacity style={styles.primaryButton} onPress={handleAuthAccess}>
-              <Text style={styles.primaryButtonText}>Sign In</Text>
-            </TouchableOpacity>
-          ) : (
-            <>
-              {user.role === 'admin' && (
-                <TouchableOpacity style={styles.adminButton} onPress={handleAdminAccess}>
-                  <Shield size={20} color={colors.white} />
-                  <Text style={styles.adminButtonText}>Admin Panel</Text>
-                </TouchableOpacity>
-              )}
-              
-              {user.role === 'business' && (
-                <TouchableOpacity style={styles.businessButton} onPress={() => router.push('/business')}>
-                  <Settings size={20} color={colors.white} />
-                  <Text style={styles.businessButtonText}>Business Dashboard</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <LogOut size={20} color={colors.error[500]} />
-                <Text style={styles.logoutButtonText}>Sign Out</Text>
-              </TouchableOpacity>
-            </>
-          )}
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Happy Arz App v1.0.0</Text>
           <Text style={styles.footerSubtext}>
-            Discover amazing discounts at venues in Bangkok
+            Discover amazing discounts at venues worldwide
           </Text>
         </View>
       </ScrollView>
@@ -164,9 +181,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   headerTitle: {
-    fontSize: typography.fontSize['3xl'],
-    fontFamily: typography.fontFamily.heading,
-    color: colors.secondary[900],
+    fontSize: 30,
+    fontFamily: 'PlayfairDisplay-Bold',
+    color: '#0f172a',
   },
   profileCard: {
     flexDirection: 'row',
@@ -182,7 +199,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.primary[50],
+    backgroundColor: '#fef7ee',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
@@ -191,28 +208,59 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileName: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.secondary[900],
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
     marginBottom: spacing.xs,
   },
   profileEmail: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.secondary[600],
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: colors.secondary,
+  },
+  currentLocationCard: {
+    backgroundColor: '#fef7ee',
+    marginHorizontal: spacing.lg,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+  },
+  currentLocationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  roleBadge: {
-    backgroundColor: colors.primary[100],
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.md,
-    alignSelf: 'flex-start',
+  currentLocationTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#ea580c',
+    marginLeft: spacing.sm,
   },
-  roleText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.primary[700],
+  currentLocationName: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
+    marginBottom: spacing.xs,
+  },
+  currentLocationTime: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: colors.secondary,
+    marginBottom: spacing.md,
+  },
+  changeLocationButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  changeLocationText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.white,
   },
   menuSection: {
     marginHorizontal: spacing.lg,
@@ -227,7 +275,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.secondary[100],
+    borderBottomColor: '#e2e8f0',
+  },
+  menuItemLast: {
+    borderBottomWidth: 0,
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -238,7 +289,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.secondary[50],
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
@@ -247,77 +298,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuItemTitle: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.semibold,
-    color: colors.secondary[900],
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
     marginBottom: spacing.xs,
   },
   menuItemSubtitle: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.secondary[600],
-  },
-  actionSection: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  primaryButton: {
-    backgroundColor: colors.primary[500],
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  primaryButtonText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.semibold,
-    color: colors.white,
-  },
-  adminButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.secondary[800],
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.md,
-  },
-  adminButtonText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.semibold,
-    color: colors.white,
-    marginLeft: spacing.sm,
-  },
-  businessButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary[600],
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.md,
-  },
-  businessButtonText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.semibold,
-    color: colors.white,
-    marginLeft: spacing.sm,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.error[50],
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.error[200],
-  },
-  logoutButtonText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.semibold,
-    color: colors.error[500],
-    marginLeft: spacing.sm,
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: colors.secondary,
   },
   footer: {
     alignItems: 'center',
@@ -325,15 +314,15 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   footerText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-    color: colors.secondary[500],
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: colors.secondary,
     marginBottom: spacing.xs,
   },
   footerSubtext: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.secondary[400],
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#94a3b8',
     textAlign: 'center',
   },
 });

@@ -43,7 +43,7 @@ async function getMockGooglePlacesData(query: string | null, location: string | 
       price_level: 4,
       types: ['restaurant', 'bar', 'establishment'],
       photos: [{
-        photo_reference: 'https://images.pexels.com/photos/1581384/pexels-photo-1581384.jpeg'
+        photo_reference: 'https://images.pexels.com/photos/1581384/pexels-photo-1581384.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp'
       }],
       opening_hours: {
         open_now: true,
@@ -67,7 +67,7 @@ async function getMockGooglePlacesData(query: string | null, location: string | 
       price_level: 2,
       types: ['spa', 'health', 'establishment'],
       photos: [{
-        photo_reference: 'https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg'
+        photo_reference: 'https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp'
       }],
       opening_hours: {
         open_now: true,
@@ -91,7 +91,7 @@ async function getMockGooglePlacesData(query: string | null, location: string | 
       price_level: 1,
       types: ['tourist_attraction', 'establishment'],
       photos: [{
-        photo_reference: 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg'
+        photo_reference: 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp'
       }],
       opening_hours: {
         open_now: false,
@@ -115,7 +115,7 @@ async function getMockGooglePlacesData(query: string | null, location: string | 
       price_level: 2,
       types: ['spa', 'school', 'establishment'],
       photos: [{
-        photo_reference: 'https://images.pexels.com/photos/3865676/pexels-photo-3865676.jpeg'
+        photo_reference: 'https://images.pexels.com/photos/3865676/pexels-photo-3865676.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp'
       }],
       opening_hours: {
         open_now: true,
@@ -139,7 +139,7 @@ async function getMockGooglePlacesData(query: string | null, location: string | 
       price_level: 3,
       types: ['restaurant', 'establishment'],
       photos: [{
-        photo_reference: 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg'
+        photo_reference: 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp'
       }],
       opening_hours: {
         open_now: true,
@@ -163,7 +163,7 @@ async function getMockGooglePlacesData(query: string | null, location: string | 
       price_level: 3,
       types: ['spa', 'beauty_salon', 'establishment'],
       photos: [{
-        photo_reference: 'https://images.pexels.com/photos/3865711/pexels-photo-3865711.jpeg'
+        photo_reference: 'https://images.pexels.com/photos/3865711/pexels-photo-3865711.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&fit=crop&fm=webp'
       }],
       opening_hours: {
         open_now: true,

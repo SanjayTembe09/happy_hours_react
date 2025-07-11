@@ -14,76 +14,115 @@ export function useLocation() {
   const [location, setLocation] = useState<LocationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const mountedRef = useRef(false);
+  const mountedRef = useRef(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup function
+  const cleanup = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
 
   const getCurrentLocation = async () => {
     if (!mountedRef.current) return;
     
     setLoading(true);
     setError(null);
+    cleanup();
+
+    // Set a timeout to prevent hanging
+    timeoutRef.current = setTimeout(() => {
+      if (mountedRef.current) {
+        setError('Location request timed out');
+        setLoading(false);
+      }
+    }, 15000);
 
     try {
       if (Platform.OS === 'web') {
         // Use browser geolocation API for web
         if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            async (position) => {
-              if (!mountedRef.current) return;
-              
-              const coords = {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-              };
-              
-              // Get address from coordinates
-              const address = await reverseGeocode(coords.latitude, coords.longitude);
-              if (mountedRef.current) {
-                setLocation({ ...coords, ...address });
-                setLoading(false);
+          const promise = new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              resolve,
+              reject,
+              { 
+                enableHighAccuracy: false, // Reduce accuracy for faster response
+                timeout: 10000, 
+                maximumAge: 300000 // 5 minutes cache
               }
-            },
-            (error) => {
-              if (!mountedRef.current) return;
-              
-              console.error('Geolocation error:', error);
-              setError('Unable to get your location');
-              setLoading(false);
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-          );
+            );
+          });
+
+          const position = await promise;
+          
+          if (!mountedRef.current) return;
+          
+          const coords = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          // Get address from coordinates with error handling
+          try {
+            const address = await reverseGeocode(coords.latitude, coords.longitude);
+            if (mountedRef.current) {
+              setLocation({ ...coords, ...address });
+            }
+          } catch (geocodeError) {
+            console.warn('Reverse geocoding failed:', geocodeError);
+            if (mountedRef.current) {
+              setLocation(coords);
+            }
+          }
         } else {
           if (mountedRef.current) {
             setError('Geolocation is not supported by this browser');
-            setLoading(false);
           }
         }
       } else {
-        // Use Expo Location for mobile
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (!mountedRef.current) return;
-        
-        if (status !== 'granted') {
-          setError('Location permission denied');
-          setLoading(false);
-          return;
-        }
+        // Use Expo Location for mobile with enhanced error handling
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (!mountedRef.current) return;
+          
+          if (status !== 'granted') {
+            setError('Location permission denied');
+            return;
+          }
 
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-        });
+          const position = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced, // Use balanced instead of high for stability
+            timeInterval: 10000,
+            distanceInterval: 0,
+          });
 
-        if (!mountedRef.current) return;
+          if (!mountedRef.current) return;
 
-        const coords = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        };
+          const coords = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
 
-        // Get address from coordinates
-        const address = await reverseGeocode(coords.latitude, coords.longitude);
-        if (mountedRef.current) {
-          setLocation({ ...coords, ...address });
-          setLoading(false);
+          // Get address from coordinates with error handling
+          try {
+            const address = await reverseGeocode(coords.latitude, coords.longitude);
+            if (mountedRef.current) {
+              setLocation({ ...coords, ...address });
+            }
+          } catch (geocodeError) {
+            console.warn('Reverse geocoding failed:', geocodeError);
+            if (mountedRef.current) {
+              setLocation(coords);
+            }
+          }
+        } catch (locationError) {
+          console.error('Location error:', locationError);
+          if (mountedRef.current) {
+            setError('Failed to get location');
+          }
         }
       }
     } catch (err) {
@@ -91,16 +130,30 @@ export function useLocation() {
       
       console.error('Location error:', err);
       setError('Failed to get location');
-      setLoading(false);
+    } finally {
+      cleanup();
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   const reverseGeocode = async (lat: number, lng: number) => {
     try {
       if (Platform.OS !== 'web') {
-        // Use Expo Location reverse geocoding for mobile
-        const result = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
-        if (result.length > 0) {
+        // Use Expo Location reverse geocoding for mobile with timeout
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Geocoding timeout')), 5000);
+        });
+
+        const geocodePromise = Location.reverseGeocodeAsync({ 
+          latitude: lat, 
+          longitude: lng 
+        });
+
+        const result = await Promise.race([geocodePromise, timeoutPromise]) as any[];
+        
+        if (result && result.length > 0) {
           const location = result[0];
           return {
             address: `${location.street || ''} ${location.streetNumber || ''}`.trim(),
@@ -109,21 +162,34 @@ export function useLocation() {
           };
         }
       } else {
-        // Use a geocoding service for web (you can replace with your preferred service)
-        // For demo, we'll use a simple approach
-        const response = await fetch(
-          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
-        );
-        const data = await response.json();
-        
-        return {
-          address: data.locality || '',
-          city: data.city || data.principalSubdivision || '',
-          country: data.countryName || '',
-        };
+        // Use a geocoding service for web with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        try {
+          const response = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+            { signal: controller.signal }
+          );
+          
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            const data = await response.json();
+            return {
+              address: data.locality || '',
+              city: data.city || data.principalSubdivision || '',
+              country: data.countryName || '',
+            };
+          }
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          throw fetchError;
+        }
       }
     } catch (error) {
-      console.error('Reverse geocoding error:', error);
+      console.warn('Reverse geocoding error:', error);
+      // Return empty object instead of throwing
       return {};
     }
     return {};
@@ -131,10 +197,10 @@ export function useLocation() {
 
   useEffect(() => {
     mountedRef.current = true;
-    getCurrentLocation();
 
     return () => {
       mountedRef.current = false;
+      cleanup();
     };
   }, []);
 

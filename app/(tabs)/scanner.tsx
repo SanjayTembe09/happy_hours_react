@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,47 @@ import {
   Image,
 } from 'react-native';
 import { Camera, Image as ImageIcon, Zap, CircleCheck as CheckCircle } from 'lucide-react-native';
-import { colors, typography, spacing, borderRadius, shadows } from '@/constants/theme';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
+
+const colors = {
+  primary: '#f97316',
+  secondary: '#64748b',
+  success: '#22c55e',
+  white: '#ffffff',
+};
+
+const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+};
+
+const borderRadius = {
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16,
+};
+
+const shadows = {
+  md: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  sm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+};
 
 export default function ScannerScreen() {
-  const [facing, setFacing] = useState<CameraType>('back');
-  const [permission, requestPermission] = useCameraPermissions();
-  const [showCamera, setShowCamera] = useState(false);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<any>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -51,24 +84,21 @@ export default function ScannerScreen() {
       return;
     }
 
-    // For demo purposes, simulate taking a picture
-    const mockImageUri = 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg';
-    setShowCamera(false);
-    simulateScan(mockImageUri);
+    try {
+      // For now, simulate taking a picture with a placeholder image
+      const placeholderImage = 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop';
+      simulateScan(placeholderImage);
+    } catch (error) {
+      console.error('Camera error:', error);
+      Alert.alert('Error', 'Failed to access camera. Please try again.');
+    }
   };
 
   const pickImage = async () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        simulateScan(result.assets[0].uri);
-      }
+      // For now, simulate picking an image with a placeholder
+      const placeholderImage = 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=600&h=400&fit=crop';
+      simulateScan(placeholderImage);
     } catch (error) {
       Alert.alert('Error', 'Failed to pick image from gallery');
     }
@@ -78,54 +108,7 @@ export default function ScannerScreen() {
     setScannedImage(null);
     setScanResult(null);
     setIsScanning(false);
-    setShowCamera(false);
   };
-
-  if (showCamera) {
-    if (!permission) {
-      return <View style={styles.container} />;
-    }
-
-    if (!permission.granted) {
-      return (
-        <SafeAreaView style={styles.container}>
-          <View style={styles.permissionContainer}>
-            <Camera size={64} color={colors.secondary[400]} />
-            <Text style={styles.permissionTitle}>Camera Permission Required</Text>
-            <Text style={styles.permissionText}>
-              We need access to your camera to scan menus and find discounts
-            </Text>
-            <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-              <Text style={styles.permissionButtonText}>Grant Permission</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      );
-    }
-
-    return (
-      <View style={styles.container}>
-        <CameraView style={styles.camera} facing={facing}>
-          <View style={styles.cameraOverlay}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowCamera(false)}
-            >
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-            
-            <View style={styles.scanFrame} />
-            
-            <View style={styles.cameraControls}>
-              <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
-                <View style={styles.captureButtonInner} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </CameraView>
-      </View>
-    );
-  }
 
   if (scanResult) {
     return (
@@ -139,7 +122,7 @@ export default function ScannerScreen() {
 
         <View style={styles.resultContainer}>
           <View style={styles.successHeader}>
-            <CheckCircle size={32} color={colors.success[500]} />
+            <CheckCircle size={32} color={colors.success} />
             <Text style={styles.successTitle}>Menu Scanned Successfully!</Text>
             <Text style={styles.restaurantName}>{scanResult.restaurant}</Text>
           </View>
@@ -181,7 +164,7 @@ export default function ScannerScreen() {
 
       {isScanning ? (
         <View style={styles.scanningContainer}>
-          <Zap size={64} color={colors.primary[500]} />
+          <Zap size={64} color={colors.primary} />
           <Text style={styles.scanningTitle}>Analyzing Menu...</Text>
           <Text style={styles.scanningText}>Our AI is finding the best discounts for you</Text>
           {scannedImage && (
@@ -192,9 +175,9 @@ export default function ScannerScreen() {
         <View style={styles.scannerOptions}>
           <TouchableOpacity
             style={styles.scanOption}
-            onPress={() => setShowCamera(true)}
+            onPress={takePicture}
           >
-            <Camera size={48} color={colors.primary[500]} />
+            <Camera size={48} color={colors.primary} />
             <Text style={styles.scanOptionTitle}>Take Photo</Text>
             <Text style={styles.scanOptionText}>
               Point your camera at a menu to scan for discounts
@@ -202,7 +185,7 @@ export default function ScannerScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.scanOption} onPress={pickImage}>
-            <ImageIcon size={48} color={colors.primary[500]} />
+            <ImageIcon size={48} color={colors.primary} />
             <Text style={styles.scanOptionTitle}>Choose from Gallery</Text>
             <Text style={styles.scanOptionText}>
               Select a menu photo from your device
@@ -243,20 +226,20 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   headerTitle: {
-    fontSize: typography.fontSize['3xl'],
-    fontFamily: typography.fontFamily.heading,
-    color: colors.secondary[900],
+    fontSize: 30,
+    fontFamily: 'PlayfairDisplay-Bold',
+    color: '#0f172a',
     marginBottom: spacing.xs,
   },
   headerSubtitle: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.secondary[600],
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: colors.secondary,
   },
   resetText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.medium,
-    color: colors.primary[500],
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: colors.primary,
   },
   scannerOptions: {
     flex: 1,
@@ -272,107 +255,18 @@ const styles = StyleSheet.create({
     ...shadows.md,
   },
   scanOptionTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.secondary[900],
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
   scanOptionText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.secondary[600],
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: colors.secondary,
     textAlign: 'center',
-    lineHeight: typography.fontSize.base * 1.4,
-  },
-  camera: {
-    flex: 1,
-  },
-  cameraOverlay: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  closeButtonText: {
-    color: colors.white,
-    fontSize: 20,
-    fontFamily: typography.fontFamily.bold,
-  },
-  scanFrame: {
-    position: 'absolute',
-    top: '30%',
-    left: '10%',
-    right: '10%',
-    height: 200,
-    borderWidth: 2,
-    borderColor: colors.primary[500],
-    borderRadius: borderRadius.lg,
-    backgroundColor: 'transparent',
-  },
-  cameraControls: {
-    position: 'absolute',
-    bottom: 50,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  captureButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  captureButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.primary[500],
-  },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  permissionTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.secondary[900],
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  permissionText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.secondary[600],
-    textAlign: 'center',
-    lineHeight: typography.fontSize.base * 1.4,
-    marginBottom: spacing.xl,
-  },
-  permissionButton: {
-    backgroundColor: colors.primary[500],
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-  },
-  permissionButtonText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.semibold,
-    color: colors.white,
+    lineHeight: 22,
   },
   scanningContainer: {
     flex: 1,
@@ -381,16 +275,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   scanningTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.secondary[900],
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   scanningText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.secondary[600],
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: colors.secondary,
     textAlign: 'center',
     marginBottom: spacing.lg,
   },
@@ -408,16 +302,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   successTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.success[600],
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#16a34a',
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
   },
   restaurantName: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.medium,
-    color: colors.secondary[700],
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#334155',
   },
   scannedImage: {
     width: '100%',
@@ -426,30 +320,30 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   savingsCard: {
-    backgroundColor: colors.success[50],
+    backgroundColor: '#f0fdf4',
     padding: spacing.lg,
     borderRadius: borderRadius.xl,
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
   savingsTitle: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.medium,
-    color: colors.success[700],
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#15803d',
     marginBottom: spacing.xs,
   },
   savingsAmount: {
-    fontSize: typography.fontSize['3xl'],
-    fontFamily: typography.fontFamily.bold,
-    color: colors.success[600],
+    fontSize: 30,
+    fontFamily: 'Inter-Bold',
+    color: '#16a34a',
   },
   itemsList: {
     flex: 1,
   },
   itemsTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.secondary[900],
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
     marginBottom: spacing.md,
   },
   itemCard: {
@@ -466,36 +360,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemName: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.semibold,
-    color: colors.secondary[900],
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#0f172a',
     marginBottom: spacing.xs,
   },
   itemPrice: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.secondary[600],
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: colors.secondary,
   },
   discountBadge: {
-    backgroundColor: colors.primary[500],
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.md,
   },
   discountText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.bold,
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
     color: colors.white,
   },
   infoSection: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
-    backgroundColor: colors.secondary[50],
+    backgroundColor: '#f1f5f9',
   },
   infoTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.secondary[900],
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
     marginBottom: spacing.md,
   },
   infoSteps: {
@@ -509,18 +403,18 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.primary[500],
+    backgroundColor: colors.primary,
     color: colors.white,
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.bold,
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
     textAlign: 'center',
     lineHeight: 24,
     marginRight: spacing.sm,
   },
   stepText: {
     flex: 1,
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.secondary[700],
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#334155',
   },
 });

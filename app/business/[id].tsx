@@ -53,8 +53,9 @@ export default function BusinessDetailsScreen() {
   };
 
   const handleGetDirections = () => {
-    // Always use Google Maps for directions
-    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`;
+    // Search by business name for better Google Maps integration
+    const searchQuery = `${business.name} ${business.address}`;
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`;
     
     if (Platform.OS === 'web') {
       // For web, open in new tab
@@ -62,8 +63,8 @@ export default function BusinessDetailsScreen() {
     } else {
       // For mobile, try to open Google Maps app first, fallback to web
       const mobileGoogleMapsUrl = Platform.select({
-        ios: `comgooglemaps://?q=${encodeURIComponent(business.address)}`,
-        android: `google.navigation:q=${encodeURIComponent(business.address)}`,
+        ios: `comgooglemaps://?q=${encodeURIComponent(searchQuery)}`,
+        android: `google.navigation:q=${encodeURIComponent(searchQuery)}`,
       });
 
       // Try to open native Google Maps app first
@@ -198,7 +199,7 @@ export default function BusinessDetailsScreen() {
             </Text>
             <TouchableOpacity style={styles.directionsButton} onPress={handleGetDirections}>
               <Navigation size={16} color={colors.primary[500]} />
-              <Text style={styles.directionsText}>Open in Google Maps</Text>
+              <Text style={styles.directionsText}>Find "{business.name}" in Google Maps</Text>
             </TouchableOpacity>
           </View>
 

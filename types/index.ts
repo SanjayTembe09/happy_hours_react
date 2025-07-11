@@ -1,12 +1,3 @@
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  avatar?: string;
-  role: 'customer' | 'business' | 'admin';
-  businessId?: string;
-}
-
 export interface Business {
   id: string;
   name: string;
@@ -21,6 +12,37 @@ export interface Business {
   rating: number;
   currentDiscount?: Discount;
   isActive: boolean;
+  isBookmarked?: boolean;
+  isVerified?: boolean; // NEW: Mark verified businesses
+  verificationData?: VerificationData; // NEW: Store verification details
+}
+
+export interface VerificationData {
+  source: 'spreadsheet' | 'manual' | 'api';
+  verifiedAt: string;
+  verifiedBy?: string;
+  originalData?: any; // Store original spreadsheet data
+  googleMarker?: string;
+  logo?: string;
+  telephone?: string;
+  website?: string;
+  remarks?: string;
+  lastUpdate?: string;
+}
+
+export interface SpreadsheetRow {
+  name: string;
+  description: string;
+  address: string;
+  googleMarker?: string;
+  picture?: string;
+  logo?: string;
+  open?: string;
+  happyHourStart?: string;
+  happyHourEnd?: string;
+  telephone?: string;
+  remark?: string;
+  update?: string;
 }
 
 export interface Discount {
@@ -34,11 +56,22 @@ export interface Discount {
   isActive: boolean;
 }
 
-export interface AuthState {
-  user: User | null;
-  token: string | null;
-  isLoading: boolean;
-  error: string | null;
+export interface LocationOption {
+  id: string;
+  name: string;
+  country: string;
+  coordinates: {
+    latitude: number;
+    longitude: number;
+  };
+  timezone: string;
+  isPopular?: boolean;
+}
+
+export interface UserPreferences {
+  selectedLocation: LocationOption | null;
+  bookmarkedPlaces: string[];
+  favoriteCategories: string[];
 }
 
 export interface AppState {
@@ -48,6 +81,8 @@ export interface AppState {
     latitude: number;
     longitude: number;
   } | null;
+  selectedLocation: LocationOption | null;
+  userPreferences: UserPreferences;
   isLoading: boolean;
   error: string | null;
 }

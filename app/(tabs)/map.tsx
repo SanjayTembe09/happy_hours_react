@@ -13,9 +13,10 @@ import {
 } from 'react-native';
 import { MapPin, Navigation, Star, Clock } from 'lucide-react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '@/constants/theme';
-import { mockBusinesses } from '@/lib/data';
 import { useLocation } from '@/hooks/useLocation';
+import { useLocationSelection } from '@/hooks/useLocationSelection';
 import { PlacesService } from '@/lib/placesService';
+import { LocationService } from '@/lib/locationService';
 import { Business } from '@/types';
 import { router } from 'expo-router';
 
@@ -26,30 +27,44 @@ export default function MapScreen() {
   const [refreshing, setRefreshing] = useState(false);
   
   const { location, loading: locationLoading, getCurrentLocation } = useLocation();
+  const { selectedLocation } = useLocationSelection();
+
+  // Use selected location or current location
+  const activeLocation = selectedLocation 
+    ? {
+        latitude: selectedLocation.coordinates.latitude,
+        longitude: selectedLocation.coordinates.longitude,
+        city: selectedLocation.name,
+      }
+    : location;
 
   useEffect(() => {
-    if (location) {
+    if (activeLocation) {
       loadNearbyPlaces();
     }
-  }, [location]);
+  }, [activeLocation]);
 
   const loadNearbyPlaces = async () => {
-    if (!location) return;
+    if (!activeLocation) return;
 
     setLoading(true);
     try {
+      // Get all places from PlacesService (includes verified businesses and API data)
       const places = await PlacesService.searchNearbyPlaces({
-        latitude: location.latitude,
-        longitude: location.longitude,
-        radius: 10000, // 10km radius for map view
+        latitude: activeLocation.latitude,
+        longitude: activeLocation.longitude,
+        radius: 50000, // 50km radius for map view
       });
-      setNearbyPlaces(places);
+
+      // Show ALL active businesses, not just those with discounts
+      const activePlaces = places.filter(business => business.isActive);
+
+      console.log(`Map: Found ${activePlaces.length} active businesses in ${getLocationDisplayName()}`);
+      setNearbyPlaces(activePlaces);
     } catch (error) {
       console.error('Error loading places:', error);
-      // Fallback to mock data if API fails
-      setNearbyPlaces(mockBusinesses.filter(business => 
-        business.currentDiscount?.isActive === true && business.isActive
-      ));
+      Alert.alert('Error', 'Unable to load places. Please check your internet connection.');
+      setNearbyPlaces([]);
     } finally {
       setLoading(false);
     }
@@ -57,9 +72,9 @@ export default function MapScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (location) {
+    if (activeLocation) {
       await loadNearbyPlaces();
-    } else {
+    } else if (!selectedLocation) {
       await getCurrentLocation();
     }
     setRefreshing(false);
@@ -77,22 +92,36 @@ export default function MapScreen() {
     return R * c;
   };
 
-  // CRITICAL: Filter to show ONLY businesses with ACTIVE discounts
-  const businessesWithActiveDiscounts = nearbyPlaces.filter(business => 
-    business.currentDiscount?.isActive === true && business.isActive
+  // Show ALL businesses, prioritize those with discounts
+  const businessesWithDiscounts = nearbyPlaces.filter(business => 
+    business.currentDiscount && business.isActive
   );
 
-  const businessesWithDistance = location 
-    ? businessesWithActiveDiscounts.map(business => ({
-        ...business,
-        distance: calculateDistance(
-          location.latitude,
-          location.longitude,
-          business.location.latitude,
-          business.location.longitude
-        )
-      })).sort((a, b) => a.distance - b.distance)
-    : businessesWithActiveDiscounts;
+  const businessesWithoutDiscounts = nearbyPlaces.filter(business => 
+    !business.currentDiscount && business.isActive
+  );
+
+  // Only show distance when using GPS location, not when browsing other cities
+  const shouldShowDistance = () => {
+    return location && !selectedLocation;
+  };
+
+  const addDistanceToBusinesses = (businesses: Business[]) => {
+    if (!shouldShowDistance() || !location) return businesses;
+    
+    return businesses.map(business => ({
+      ...business,
+      distance: calculateDistance(
+        location.latitude,
+        location.longitude,
+        business.location.latitude,
+        business.location.longitude
+      )
+    })).sort((a: any, b: any) => a.distance - b.distance);
+  };
+
+  const businessesWithDiscountsAndDistance = addDistanceToBusinesses(businessesWithDiscounts);
+  const businessesWithoutDiscountsAndDistance = addDistanceToBusinesses(businessesWithoutDiscounts);
 
   const handleBusinessPress = (business: Business) => {
     router.push({
@@ -117,16 +146,20 @@ export default function MapScreen() {
 
   // Get location display name
   const getLocationDisplayName = () => {
-    if (!location) return 'your area';
+    if (selectedLocation) {
+      return LocationService.getLocationDisplayName(selectedLocation);
+    }
+    
+    if (!activeLocation) return 'your area';
     
     // Extract city from location if available
-    if (location.city) {
-      return location.city;
+    if (activeLocation.city) {
+      return activeLocation.city;
     }
     
     // Fallback to coordinates-based city detection
-    const lat = location.latitude;
-    const lng = location.longitude;
+    const lat = activeLocation.latitude;
+    const lng = activeLocation.longitude;
     
     // Major city coordinate ranges (approximate)
     if (lat >= 40.4774 && lat <= 40.9176 && lng >= -74.2591 && lng <= -73.7004) return 'New York';
@@ -141,15 +174,121 @@ export default function MapScreen() {
     return 'your area';
   };
 
+  // Helper function to check if a discount is currently active based on time
+  const isDiscountCurrentlyActive = (discount: any): boolean => {
+    if (!discount || !discount.isActive) return false;
+    
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes(); // Current time in minutes
+    
+    // Parse time strings (e.g., "17:00" -> 1020 minutes)
+    const parseTime = (timeStr: string): number => {
+      if (!timeStr) return 0;
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + (minutes || 0);
+    };
+    
+    const startTime = parseTime(discount.validFrom);
+    const endTime = parseTime(discount.validTo);
+    
+    // Handle cases where end time is next day (e.g., 23:00 to 02:00)
+    if (endTime < startTime) {
+      return currentTime >= startTime || currentTime <= endTime;
+    }
+    
+    return currentTime >= startTime && currentTime <= endTime;
+  };
+
+  const renderBusinessItem = (business: any, hasDiscount: boolean) => {
+    const isCurrentlyActive = hasDiscount && isDiscountCurrentlyActive(business.currentDiscount);
+    
+    return (
+      <TouchableOpacity
+        key={business.id}
+        style={[
+          styles.businessItem,
+          selectedBusiness?.id === business.id && styles.businessItemSelected,
+          isCurrentlyActive && styles.businessItemActive,
+          !hasDiscount && styles.businessItemNoDiscount
+        ]}
+        onPress={() => {
+          setSelectedBusiness(business);
+          handleBusinessPress(business);
+        }}
+      >
+        <View style={styles.businessInfo}>
+          <View style={styles.businessHeader}>
+            <Text style={styles.businessName}>{business.name}</Text>
+            <View style={styles.businessBadges}>
+              {business.isVerified && (
+                <View style={styles.verifiedBadge}>
+                  <Text style={styles.verifiedText}>✓</Text>
+                </View>
+              )}
+              {isCurrentlyActive && (
+                <View style={styles.activeNowBadge}>
+                  <Text style={styles.activeNowText}>ACTIVE NOW</Text>
+                </View>
+              )}
+              {hasDiscount && !isCurrentlyActive && (
+                <View style={styles.scheduledBadge}>
+                  <Text style={styles.scheduledText}>SCHEDULED</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          <Text style={styles.businessCategory}>{business.category}</Text>
+          <View style={styles.businessMeta}>
+            <View style={styles.ratingContainer}>
+              <Star size={14} color={colors.warning[500]} fill={colors.warning[500]} />
+              <Text style={styles.rating}>{business.rating.toFixed(1)}</Text>
+            </View>
+            {shouldShowDistance() && location && 'distance' in business && (
+              <Text style={styles.distance}>
+                {business.distance.toFixed(1)} km away
+              </Text>
+            )}
+          </View>
+          {hasDiscount && business.currentDiscount && (
+            <View style={styles.discountContainer}>
+              <View style={[
+                styles.discountBadge,
+                isCurrentlyActive ? styles.discountBadgeActive : styles.discountBadgeInactive
+              ]}>
+                <Text style={styles.discountText}>
+                  {business.currentDiscount.percentage}% OFF
+                </Text>
+              </View>
+              <View style={styles.discountInfo}>
+                <Text style={styles.discountTitle}>{business.currentDiscount.title}</Text>
+                <View style={styles.timeContainer}>
+                  <Clock size={12} color={colors.secondary[500]} />
+                  <Text style={[
+                    styles.timeText,
+                    isCurrentlyActive && styles.timeTextActive
+                  ]}>
+                    {business.currentDiscount.validFrom} - {business.currentDiscount.validTo}
+                    {isCurrentlyActive && ' (Active Now!)'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+        </View>
+        <MapPin size={24} color={colors.primary[500]} />
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Happy Hour Map</Text>
+          <Text style={styles.headerTitle}>Business Map</Text>
           <Text style={styles.headerSubtitle}>
-            {location 
-              ? `${businessesWithDistance.length} active deals in ${getLocationDisplayName()}`
-              : 'Active deals nearby'
+            {activeLocation 
+              ? `${nearbyPlaces.length} businesses in ${getLocationDisplayName()}`
+              : 'Businesses nearby'
             }
           </Text>
         </View>
@@ -170,23 +309,23 @@ export default function MapScreen() {
         <MapPin size={48} color={colors.primary[500]} />
         <Text style={styles.mapPlaceholderText}>Interactive Map View</Text>
         <Text style={styles.mapPlaceholderSubtext}>
-          {location 
-            ? `Your location: ${getLocationDisplayName()}`
+          {activeLocation 
+            ? `Exploring: ${getLocationDisplayName()}`
             : locationLoading 
               ? 'Getting your location...'
               : 'Location not available'
           }
         </Text>
-        {location && (
+        {activeLocation && (
           <Text style={styles.coordinatesText}>
-            {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+            {activeLocation.latitude.toFixed(4)}, {activeLocation.longitude.toFixed(4)}
           </Text>
         )}
       </View>
 
       <View style={styles.businessList}>
         <Text style={styles.listTitle}>
-          Active Happy Hours {location && `(${businessesWithDistance.length})`}
+          All Businesses {activeLocation && `(${nearbyPlaces.length})`}
         </Text>
         
         <ScrollView 
@@ -203,16 +342,16 @@ export default function MapScreen() {
           {loading && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={colors.primary[500]} />
-              <Text style={styles.loadingText}>Loading active deals...</Text>
+              <Text style={styles.loadingText}>Loading businesses...</Text>
             </View>
           )}
 
-          {!location && !locationLoading && (
+          {!activeLocation && !locationLoading && (
             <View style={styles.emptyContainer}>
               <Navigation size={32} color={colors.secondary[400]} />
               <Text style={styles.emptyText}>Location needed</Text>
               <Text style={styles.emptySubtext}>
-                Enable location to see happy hours near you
+                Choose a location to see businesses
               </Text>
               <TouchableOpacity style={styles.enableLocationButton} onPress={getCurrentLocation}>
                 <Text style={styles.enableLocationButtonText}>Enable Location</Text>
@@ -220,64 +359,42 @@ export default function MapScreen() {
             </View>
           )}
 
-          {businessesWithDistance.length === 0 && !loading && location && (
+          {nearbyPlaces.length === 0 && !loading && activeLocation && (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No active deals found</Text>
+              <Text style={styles.emptyText}>No businesses found</Text>
               <Text style={styles.emptySubtext}>
-                Check back later for new happy hour deals in {getLocationDisplayName()}
+                No businesses found in {getLocationDisplayName()}. Upload business data via the Admin panel or configure your Google Places API key to see real businesses.
               </Text>
             </View>
           )}
 
-          {businessesWithDistance.map((business) => (
-            <TouchableOpacity
-              key={business.id}
-              style={[
-                styles.businessItem,
-                selectedBusiness?.id === business.id && styles.businessItemSelected
-              ]}
-              onPress={() => {
-                setSelectedBusiness(business);
-                handleBusinessPress(business);
-              }}
-            >
-              <View style={styles.businessInfo}>
-                <Text style={styles.businessName}>{business.name}</Text>
-                <Text style={styles.businessCategory}>{business.category}</Text>
-                <View style={styles.businessMeta}>
-                  <View style={styles.ratingContainer}>
-                    <Star size={14} color={colors.warning[500]} fill={colors.warning[500]} />
-                    <Text style={styles.rating}>{business.rating.toFixed(1)}</Text>
-                  </View>
-                  {location && (
-                    <Text style={styles.distance}>
-                      {business.distance.toFixed(1)} km away
-                    </Text>
-                  )}
-                </View>
-                {/* Always show discount since we only display businesses with active discounts */}
-                {business.currentDiscount && (
-                  <View style={styles.discountContainer}>
-                    <View style={styles.discountBadge}>
-                      <Text style={styles.discountText}>
-                        {business.currentDiscount.percentage}% OFF
-                      </Text>
-                    </View>
-                    <View style={styles.discountInfo}>
-                      <Text style={styles.discountTitle}>{business.currentDiscount.title}</Text>
-                      <View style={styles.timeContainer}>
-                        <Clock size={12} color={colors.secondary[500]} />
-                        <Text style={styles.timeText}>
-                          {business.currentDiscount.validFrom} - {business.currentDiscount.validTo}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
+          {/* Businesses with Happy Hours */}
+          {businessesWithDiscountsAndDistance.length > 0 && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  Happy Hours ({businessesWithDiscountsAndDistance.length})
+                </Text>
               </View>
-              <MapPin size={24} color={colors.primary[500]} />
-            </TouchableOpacity>
-          ))}
+              {businessesWithDiscountsAndDistance.map((business) => 
+                renderBusinessItem(business, true)
+              )}
+            </>
+          )}
+
+          {/* Other Businesses */}
+          {businessesWithoutDiscountsAndDistance.length > 0 && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  Other Businesses ({businessesWithoutDiscountsAndDistance.length})
+                </Text>
+              </View>
+              {businessesWithoutDiscountsAndDistance.map((business) => 
+                renderBusinessItem(business, false)
+              )}
+            </>
+          )}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -359,6 +476,15 @@ const styles = StyleSheet.create({
     color: colors.secondary[900],
     marginBottom: spacing.md,
   },
+  sectionHeader: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: typography.fontFamily.bold,
+    color: colors.secondary[800],
+  },
   loadingContainer: {
     alignItems: 'center',
     paddingVertical: spacing.lg,
@@ -412,15 +538,69 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary[200],
   },
+  businessItemActive: {
+    backgroundColor: colors.success[50],
+    borderWidth: 2,
+    borderColor: colors.success[200],
+  },
+  businessItemNoDiscount: {
+    backgroundColor: colors.secondary[25],
+  },
   businessInfo: {
     flex: 1,
     marginRight: spacing.md,
+  },
+  businessHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xs,
   },
   businessName: {
     fontSize: typography.fontSize.base,
     fontFamily: typography.fontFamily.semibold,
     color: colors.secondary[900],
-    marginBottom: spacing.xs,
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  businessBadges: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  verifiedBadge: {
+    backgroundColor: colors.primary[500],
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  verifiedText: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: typography.fontFamily.bold,
+    color: colors.white,
+  },
+  activeNowBadge: {
+    backgroundColor: colors.success[500],
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  activeNowText: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: typography.fontFamily.bold,
+    color: colors.white,
+  },
+  scheduledBadge: {
+    backgroundColor: colors.warning[500],
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  scheduledText: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: typography.fontFamily.bold,
+    color: colors.white,
   },
   businessCategory: {
     fontSize: typography.fontSize.sm,
@@ -455,11 +635,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   discountBadge: {
-    backgroundColor: colors.primary[500],
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
     borderRadius: borderRadius.sm,
     marginRight: spacing.xs,
+  },
+  discountBadgeActive: {
+    backgroundColor: colors.success[500],
+  },
+  discountBadgeInactive: {
+    backgroundColor: colors.warning[500],
   },
   discountText: {
     fontSize: typography.fontSize.xs,
@@ -484,5 +669,9 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
     fontFamily: typography.fontFamily.regular,
     color: colors.secondary[500],
+  },
+  timeTextActive: {
+    color: colors.success[600],
+    fontFamily: typography.fontFamily.semibold,
   },
 });
